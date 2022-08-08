@@ -29,6 +29,7 @@ jobs:
           pip install poetry  
           cd utils
           poetry build
+          git tag $(poetry version -s)
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "*.tar.gz,*.whl"
