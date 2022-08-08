@@ -33,3 +33,5 @@ jobs:
         with:
           artifacts: "*.tar.gz,*.whl"
           token: ${{ secrets.GIT_TOKEN }}
+          allowUpdates: true
+          prerelease: true
