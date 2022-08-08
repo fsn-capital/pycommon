@@ -24,11 +24,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: build
         run: |
-          pip install poetry  
-          cd utils
-          poetry build
-          git tag $(poetry version -s)
+          make all
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "utils/dist/*.tar.gz,utils/dist/*.whl"
+          artifacts: "*/dist/*.tar.gz,*/dist/*.whl"
           token: ${{ secrets.GIT_TOKEN }}
