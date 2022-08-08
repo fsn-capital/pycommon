@@ -1,15 +1,14 @@
 SHELL := /bin/bash
 
 .PHONY: all 
-all: deps build-gcs build-utils
+all: deps build
 
-.PHONY: build-gcs
-build-gcs:
-	pushd gcs && poetry build && popd
-
-.PHONY: build-utils 
-build-utils:
-	pushd utils && poetry build && popd 
+.PHONY: build
+build:
+	for dir in */; do \
+		pushd $${dir} && poetry build && popd; \
+	done
+	
 
 .PHONY: deps
 deps:
