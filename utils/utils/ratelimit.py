@@ -3,6 +3,7 @@ from math import floor
 from threading import RLock, Event, Thread
 from time import monotonic
 import logging
+from time import sleep
 
 logger = logging.getLogger(__name__)
 
