@@ -28,6 +28,8 @@ jobs:
           cd utils
           poetry build
           git tag $(poetry version -s)
+      - name: test
+        run: ls utils
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "*.tar.gz,*.whl"
