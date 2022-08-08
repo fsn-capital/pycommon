@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: all 
 all: deps build-gcs build-utils
 
