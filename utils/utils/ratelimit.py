@@ -1,8 +1,11 @@
+from __future__ import annotations
 import sys
 from math import floor
 from threading import RLock, Event, Thread, Condition
 import logging
 from traceback import print_exception
+from types import TracebackType
+from typing import Optional, Type, Union
 
 
 logging.basicConfig(
@@ -14,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class RateLimiter:
-    def __init__(self, calls: int, period: int):
+    def __init__(self, calls: int, period: Union[int, float]):
         self._max_calls = max(1, min(sys.maxsize, floor(calls)))
         self._period = period
         self._num_calls = 0
@@ -28,16 +31,16 @@ class RateLimiter:
         self._ticker.set()
         self._resetter.join()
 
-    def __enter__(self):
+    def __enter__(self) -> RateLimiter:
         return self 
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool:
         logger.debug("finalizing ratelimiter")
         self.finalize()
         if not type and not value and not traceback:
             return True
         print_exception(type, value, traceback)
-        return False
+        return False 
 
     def _reset(self):
         def do_reset():
