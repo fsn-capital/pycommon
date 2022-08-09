@@ -1,7 +1,8 @@
 from __future__ import annotations
 from google.auth import credentials
 from google.cloud import storage
-from typing import Optional, Iterator
+from typing import Optional, Iterator, Union
+from datetime import datetime
 import io
 import logging
 from google.cloud.storage.retry import is_generation_specified, is_etag_in_data, is_metageneration_specified, is_etag_in_json
@@ -69,23 +70,57 @@ class GCSHandler:
     def ratelimit_params(self):
         return self._ratelimit_params
 
-    def list_blobs(self, prefix: Optional[str] = None) -> Iterator[storage.blob.Blob]:
+    def list_blobs(self, prefix: Optional[str] = None) -> Iterator[storage.Blob]:
         if self._ratelimiter:
             self._ratelimiter.limit()
         return self.client.list_blobs(self.bucket, prefix=prefix, retry=SimpleRetrier(**self.backoff_params) if self._backoff_params else None)
 
-    def download_blob_into_memory(self, blob_name: str) -> io.BytesIO:
+    def download_blob_into_memory(self, blob_name_or_blob: Union[str, storage.Blob]) -> io.BytesIO:
         if self._ratelimiter:
             self._ratelimiter.limit()
-        blob = self.bucket.blob(blob_name)
+
+        if isinstance(blob_name_or_blob, str):
+            blob = self.bucket.blob(blob_name_or_blob)
+            return self.download_blob_into_memory(blob)
+
         file_obj = io.BytesIO()
         blob.download_to_file(file_obj, retry=SimpleRetrier(**self.backoff_params) if self._backoff_params else None)
         file_obj.seek(0)
         return file_obj
 
-    def upload_blob_from_memory(self, blob_name: str, file_obj: io.BytesIO):
+    def upload_blob_from_memory(self, blob_name_or_blob: Union[str, storage.Blob], file_obj: io.BytesIO):
         if self._ratelimiter:
             self._ratelimiter.limit()
-        blob = self.bucket.blob(blob_name)
+
+        if isinstance(blob_name_or_blob, str):
+            blob = self.bucket.blob(blob_name_or_blob)
+            return self.upload_blob_from_memory(blob, file_obj)
+
         file_obj.seek(0)
         blob.upload_from_file(file_obj, retry=ConditionalRetrier(is_generation_specified, ["query_params"], **self._backoff_params) if self._backoff_params else None)
+    
+    @staticmethod
+    def filter_updated(blobs: Iterator[storage.Blob], threshold: Union[str, datetime], cmp_op="gt"):
+        def resolve_op(lhs: storage.Blob, rhs: datetime = threshold) -> bool:
+            if hasattr(lhs, "updated"):
+                if not lhs.updated:
+                    return False 
+            else:
+                return False
+            if cmp_op == "gt":
+                return lhs.updated > rhs 
+            elif cmp_op == "ge":
+                return lhs.updated >= rhs 
+            elif cmp_op == "lt":
+                return lhs.updated < rhs 
+            elif cmp_op == "le":
+                return lhs.updated <= rhs 
+            elif cmp_op == "eq":
+                return lhs.updated == rhs 
+            else:
+                raise ValueError("Unknown comparison operator")
+        
+        if isinstance(threshold, str):
+            return GCSHandler.filter_updated(blobs, datetime.strptime(threshold, "%Y-%m-%dT%H:%M:%S.%f%z"), cmp_op)
+
+        return filter(resolve_op, blobs)
