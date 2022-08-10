@@ -9,6 +9,7 @@ backoff = "^2.1.2"
 python = "^3.8"
 
 [tool.poetry.dev-dependencies]
+black = "^22.6.0"
 mypy = "^0.971"
 pytest = "^5.2"
 
