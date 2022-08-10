@@ -8,9 +8,9 @@ on:
   push:
     paths:
       - .github/workflows/ci.yml
-      - **/*.py
-      - **/poetry.lock
-      - **/poetry.toml
+      - '**/*.py'
+      - '**/poetry.lock'
+      - '**/poetry.toml'
     branches: [main]
   pull_request:
     paths:
