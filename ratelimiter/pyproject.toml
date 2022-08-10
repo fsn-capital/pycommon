@@ -1,0 +1,16 @@
+[tool.poetry]
+authors = ["Mert Kayhan <mk@fsncapital.com>"]
+description = "Limits amount of method calls given a certain period of time"
+name = "ratelimiter"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.971"
+pytest = "^5.2"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0"]
