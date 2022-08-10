@@ -8,16 +8,16 @@ on:
   push:
     paths:
       - .github/workflows/ci.yml
-      - **/*.py
-      - **/poetry.lock
-      - **/poetry.toml
+      - '**/*.py'
+      - '**/poetry.lock'
+      - '**/poetry.toml'
     branches: [main]
   pull_request:
     paths:
       - .github/workflows/ci.yml
-      - **/*.py
-      - **/poetry.lock
-      - **/poetry.toml
+      - '**/*.py'
+      - '**/poetry.lock'
+      - '**/poetry.toml'
     branches: [main]
 
   # Allows you to run this workflow manually from the Actions tab
