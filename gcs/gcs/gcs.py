@@ -2,7 +2,7 @@ from __future__ import annotations
 from google.auth import credentials  # type: ignore
 from google.cloud import storage  # type: ignore
 from typing import Optional, Iterator, Union, Type, Mapping, cast
-from datetime import date, datetime
+from datetime import datetime
 import io
 import logging
 from google.cloud.storage.retry import (  # type: ignore
@@ -15,16 +15,31 @@ from traceback import print_exception
 from ratelimiter import RateLimiter
 from retry import SimpleRetrier, ConditionalRetrier, backoff_hdlr, expo, full_jitter
 from types import TracebackType
+from google.api_core import exceptions as api_exceptions
+import requests
+import requests.exceptions as requests_exceptions
 
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_TYPES = (
+    api_exceptions.TooManyRequests,  # 429
+    api_exceptions.InternalServerError,  # 500
+    api_exceptions.BadGateway,  # 502
+    api_exceptions.ServiceUnavailable,  # 503
+    api_exceptions.GatewayTimeout,  # 504
+    ConnectionError,
+    requests.ConnectionError,
+    requests_exceptions.ChunkedEncodingError,
+    requests_exceptions.Timeout,
+)
 
 
 class GCSHandler:
     _default_backoff_params = {
         "kind": "on_exception",
         "wait_gen": expo,
-        "exception": Exception,
+        "exception": _RETRYABLE_TYPES,
         "on_backoff": backoff_hdlr,
         "max_tries": 8,
         "jitter": full_jitter,
@@ -100,7 +115,7 @@ class GCSHandler:
             return self.download_blob_into_memory(blob)
 
         file_obj = io.BytesIO()
-        blob.download_to_file(
+        blob_name_or_blob.download_to_file(
             file_obj,
             retry=SimpleRetrier(**self.backoff_params)
             if self._backoff_params
@@ -120,7 +135,7 @@ class GCSHandler:
             return self.upload_blob_from_memory(blob, file_obj)
 
         file_obj.seek(0)
-        blob.upload_from_file(
+        blob_name_or_blob.upload_from_file(
             file_obj,
             retry=ConditionalRetrier(
                 is_generation_specified, ["query_params"], **self._backoff_params
