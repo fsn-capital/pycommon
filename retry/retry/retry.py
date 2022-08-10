@@ -1,7 +1,6 @@
 from __future__ import annotations
-from ast import Call
 import logging
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 import backoff
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,13 @@ class SimpleRetrier:
 
 
 class ConditionalRetrier(SimpleRetrier):
-    def __init__(self, conditional_predicate, required_kwargs, *args, **kwargs):
+    def __init__(
+        self,
+        conditional_predicate: Callable,
+        required_kwargs: Sequence,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._conditional_predicate = conditional_predicate
         self._required_kwargs = required_kwargs
