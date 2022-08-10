@@ -17,7 +17,7 @@ build:
 .PHONY: type-checker
 type-checker:
 	for dir in */; do \
-		pushd $${dir} && mypy . && popd || exit 1; \
+		pushd $${dir} && poetry install && source $$(poetry env info --path)/bin/activate && mypy . && deactivate && popd || exit 1; \
 	done
 
 .PHONY: deps
