@@ -1,14 +1,14 @@
 [tool.poetry]
 authors = ["Mert Kayhan <mk@fsncapital.com>"]
-description = ""
-name = "utils"
+description = "Limits amount of method calls given a certain period of time"
+name = "ratelimiter"
 version = "0.1.0"
 
 [tool.poetry.dependencies]
-backoff = "^2.1.2"
 python = "^3.8"
 
 [tool.poetry.dev-dependencies]
+mypy = "^0.971"
 pytest = "^5.2"
 
 [build-system]

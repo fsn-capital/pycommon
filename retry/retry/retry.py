@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ast import Call
 import logging
 from typing import Callable, Optional
 import backoff
@@ -26,7 +27,7 @@ class SimpleRetrier:
         self._impl = fn(*args, **kwargs)
         assert callable(self._impl), "Failed to generate backoff.{kind}"
 
-    def __call__(self, fn) -> Callable:
+    def __call__(self, fn: Callable) -> Callable:
         fn.__name__ = "retriable_api_request"
         return self._impl(fn)
 

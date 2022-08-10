@@ -1,4 +1,4 @@
-from utils import __version__
+from retry import __version__
 
 
 def test_version():

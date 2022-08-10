@@ -8,11 +8,6 @@ from types import TracebackType
 from typing import Optional, Type, Union
 
 
-logging.basicConfig(
-    format="%(asctime)s,%(msecs)d | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.DEBUG,
-)
 logger = logging.getLogger(__name__)
 
 
@@ -32,15 +27,20 @@ class RateLimiter:
         self._resetter.join()
 
     def __enter__(self) -> RateLimiter:
-        return self 
+        return self
 
-    def __exit__(self, type: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool:
+    def __exit__(
+        self,
+        type: Optional[Type[BaseException]],
+        value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> bool:
         logger.debug("finalizing ratelimiter")
         self.finalize()
         if not type and not value and not traceback:
             return True
         print_exception(type, value, traceback)
-        return False 
+        return False
 
     def _reset(self):
         def do_reset():
@@ -50,9 +50,10 @@ class RateLimiter:
 
         while not self._ticker.wait(self._period):
             do_reset()
-            logger.debug("notify all waiting threads")
+            logger.debug("notify waiting threads")
             with self._cv:
-                self._cv.notify_all()
+                # n = max calls avoids thundering herd problem
+                self._cv.notify(n=self._max_calls)
 
     def limit(self):
         if self._num_calls == self._max_calls:
@@ -61,4 +62,4 @@ class RateLimiter:
         with self._lock:
             logger.debug("increase call counter")
             self._num_calls += 1
-            print("num calls:", self._num_calls, "max calls:", self._max_calls)
+            logger.debug(f"num calls: {self._num_calls} max calls: {self._max_calls}")
