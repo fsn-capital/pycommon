@@ -1,1 +1,1 @@
-# pycommon
+# pycommon ![example workflow](https://github.com/fsn-capital/pycommon/actions/workflows/ci.yml/badge.svg) ![example workflow](https://github.com/fsn-capital/pycommon/actions/workflows/release.yml/badge.svg)
