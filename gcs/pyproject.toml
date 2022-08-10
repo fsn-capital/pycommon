@@ -13,7 +13,7 @@ retry = {url = "https://github.com/fsn-capital/pycommon/releases/download/test/r
 
 [tool.poetry.dev-dependencies]
 black = "^22.6.0"
-coverage = "^6.4.2"
+coverage = "^6.4.3"
 mypy = "^0.971"
 pytest = "^5.2"
 types-requests = "^2.28.8"
