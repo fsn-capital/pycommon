@@ -114,7 +114,7 @@ class BQHandler:
             uri,
             table_id,
             job_config=job_config,
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
@@ -124,7 +124,7 @@ class BQHandler:
     ):
         job.result(
             timeout=timeout,
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
@@ -132,7 +132,7 @@ class BQHandler:
     def get_table(self, table_id: str) -> bigquery.Table:
         return self._client.get_table(
             table_id,
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
@@ -147,9 +147,9 @@ class BQHandler:
         return self._client.extract_table(
             table_ref,
             destination_uri,
-            location,
-            job_config,
-            retry=SimpleRetrier(**self._backoff_params)
+            location=location,
+            job_config=job_config,
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
@@ -166,7 +166,7 @@ class BQHandler:
         return self._client.get_job(
             job_id,
             location,
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
@@ -182,14 +182,14 @@ class BQHandler:
         return self._client.cancel_job(
             job_id,
             location,
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None,
         )
 
     def list_datasets(self) -> Iterable:
         return self._client.list_datasets(
-            retry=SimpleRetrier(**self._backoff_params)
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None
         )
