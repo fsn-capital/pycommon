@@ -20,15 +20,24 @@ class SimpleRetrier:
         self._deadline = kwargs.get("max_time")
         self._initial = kwargs.pop("initial", 0)
         self._multiplier = kwargs.get("factor", 1)
-        kind = kwargs.pop("kind", "on_exception")
-        fn = getattr(backoff, kind)
+        self._kind = kwargs.pop("kind", "on_exception")
+        fn = getattr(backoff, self._kind)
         assert callable(fn), "Unknown retry method"
         self._impl = fn(*args, **kwargs)
-        assert callable(self._impl), "Failed to generate backoff.{kind}"
+        assert callable(self._impl), f"Failed to generate backoff.{self._kind}"
 
     def __call__(self, fn: Callable) -> Callable:
         fn.__name__ = "retriable_api_request"
-        return self._impl(fn)
+
+        def fn_wrapper(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except Exception as err:
+                if self._kind == "on_exception":
+                    raise err
+                return err
+
+        return self._impl(fn_wrapper)
 
 
 class ConditionalRetrier(SimpleRetrier):
