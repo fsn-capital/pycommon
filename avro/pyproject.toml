@@ -1,0 +1,20 @@
+[tool.poetry]
+authors = ["Mert Kayhan <mert.kayhan@tum.de>"]
+description = ""
+name = "avro"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+fastavro = "^1.5.4"
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+black = "^22.6.0"
+coverage = "^6.4.3"
+mypy = "^0.971"
+pytest = "^5.2"
+types-requests = "^2.28.8"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0"]
