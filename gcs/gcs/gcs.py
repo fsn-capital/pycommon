@@ -1,5 +1,5 @@
 from __future__ import annotations
-from google.auth import credentials  # type: ignore
+from google.auth import credentials, default  # type: ignore
 from google.cloud import storage  # type: ignore
 from typing import Optional, Iterator, Union, Type, Mapping, cast
 from datetime import datetime
@@ -18,6 +18,7 @@ from types import TracebackType
 from google.api_core import exceptions as api_exceptions
 import requests
 import requests.exceptions as requests_exceptions
+from google.api_core.client_options import ClientOptions
 
 
 logger = logging.getLogger(__name__)
@@ -51,8 +52,12 @@ class GCSHandler:
         project: str,
         bucket_name: str,
         credentials: Optional[credentials.Credentials] = None,
+        api_endpoint: Optional[str] = None,
         **kwargs,
     ):
+        options = ClientOptions(api_endpoint=api_endpoint) if api_endpoint else None
+        if options and not credentials:
+            credentials, _ = default()
         use_backoff = kwargs.pop("use_backoff", False)
         self._backoff_params = kwargs.pop("backoff_params", None)
         if use_backoff or self._backoff_params:
@@ -65,7 +70,9 @@ class GCSHandler:
                 self._ratelimit_params or self._default_ratelimit_params
             )
             self._ratelimiter = RateLimiter(**self._ratelimit_params)
-        self.client = storage.Client(project=project, credentials=credentials)
+        self.client = storage.Client(
+            project=project, credentials=credentials, options=options
+        )
         self.bucket = self.client.bucket(bucket_name)
 
     def __exit__(
