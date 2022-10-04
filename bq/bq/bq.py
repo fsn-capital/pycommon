@@ -130,7 +130,7 @@ class BQHandler:
         self, uri: str, table_id: str, job_config: Optional[bigquery.LoadJobConfig]
     ) -> bigquery.LoadJob:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.load_table_from_uri(
             uri,
             table_id,
@@ -144,7 +144,7 @@ class BQHandler:
         self, job: bigquery.LoadJob, timeout: Optional[float] = None
     ):
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         job.result(
             timeout=timeout,
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
@@ -154,7 +154,7 @@ class BQHandler:
 
     def get_table(self, table_id: str) -> bigquery.Table:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.get_table(
             table_id,
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
@@ -170,7 +170,7 @@ class BQHandler:
         job_config: bigquery.ExtractJobConfig,
     ) -> bigquery.ExtractJob:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.extract_table(
             table_ref,
             destination_uri,
@@ -191,7 +191,7 @@ class BQHandler:
         bigquery.UnknownJob,
     ]:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.get_job(
             job_id,
             location,
@@ -209,7 +209,7 @@ class BQHandler:
         bigquery.ExtractJob,
     ]:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.cancel_job(
             job_id,
             location,
@@ -220,7 +220,7 @@ class BQHandler:
 
     def list_datasets(self) -> Iterable:
         if self._ratelimit_params:
-            self._ratelimiter.limit()
+            self._ratelimiter.limit()  # type:ignore
         return self._client.list_datasets(
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
