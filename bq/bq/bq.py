@@ -12,7 +12,11 @@ from traceback import print_exception
 from google.api_core import exceptions
 
 
-_RETRYABLE_TYPES = (
+_RETRYABLE_REASONS = frozenset(
+    ["rateLimitExceeded", "backendError", "internalError", "badGateway"]
+)
+
+_UNSTRUCTURED_RETRYABLE_TYPES = (
     ConnectionError,
     exceptions.TooManyRequests,
     exceptions.InternalServerError,
@@ -26,14 +30,29 @@ _RETRYABLE_TYPES = (
 logger = logging.getLogger(__name__)
 
 
+def _should_retry(exc):
+    """Predicate for determining when to retry.
+
+    We retry if and only if the 'reason' is 'backendError'
+    or 'rateLimitExceeded'.
+    """
+    if not hasattr(exc, "errors") or len(exc.errors) == 0:
+        # Check for unstructured error returns, e.g. from GFE
+        return isinstance(exc, _UNSTRUCTURED_RETRYABLE_TYPES)
+
+    reason = exc.errors[0]["reason"]
+    return reason in _RETRYABLE_REASONS
+
+
 class BQHandler:
     _default_backoff_params = {
-        "kind": "on_exception",
+        "kind": "on_predicate",
         "wait_gen": expo,
-        "exception": _RETRYABLE_TYPES,
+        "predicate": _should_retry,
         "on_backoff": backoff_hdlr,
         "max_tries": 8,
         "jitter": full_jitter,
+        "max_time": 600,
     }
     _default_ratelimit_params = {"calls": 15, "period": 900}
 
@@ -110,6 +129,8 @@ class BQHandler:
     def start_load_job(
         self, uri: str, table_id: str, job_config: Optional[bigquery.LoadJobConfig]
     ) -> bigquery.LoadJob:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.load_table_from_uri(
             uri,
             table_id,
@@ -122,6 +143,8 @@ class BQHandler:
     def wait_for_job_completion(
         self, job: bigquery.LoadJob, timeout: Optional[float] = None
     ):
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         job.result(
             timeout=timeout,
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
@@ -130,6 +153,8 @@ class BQHandler:
         )
 
     def get_table(self, table_id: str) -> bigquery.Table:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.get_table(
             table_id,
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
@@ -144,6 +169,8 @@ class BQHandler:
         location: str,
         job_config: bigquery.ExtractJobConfig,
     ) -> bigquery.ExtractJob:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.extract_table(
             table_ref,
             destination_uri,
@@ -163,6 +190,8 @@ class BQHandler:
         bigquery.ExtractJob,
         bigquery.UnknownJob,
     ]:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.get_job(
             job_id,
             location,
@@ -179,6 +208,8 @@ class BQHandler:
         bigquery.QueryJob,
         bigquery.ExtractJob,
     ]:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.cancel_job(
             job_id,
             location,
@@ -188,6 +219,8 @@ class BQHandler:
         )
 
     def list_datasets(self) -> Iterable:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()
         return self._client.list_datasets(
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
