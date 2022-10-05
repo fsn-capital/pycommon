@@ -7,6 +7,7 @@ version = "0.1.0"
 [tool.poetry.dependencies]
 google-cloud = "^0.34.0"
 google-cloud-storage = "^2.3.0"
+protobuf = "^4.21.7"
 python = "^3.8"
 ratelimiter = {url = "https://github.com/fsn-capital/pycommon/releases/download/test/ratelimiter-0.1.0.tar.gz"}
 retry = {url = "https://github.com/fsn-capital/pycommon/releases/download/test/retry-0.1.0.tar.gz"}
