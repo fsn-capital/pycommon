@@ -19,6 +19,7 @@ from google.api_core import exceptions as api_exceptions
 import requests
 import requests.exceptions as requests_exceptions
 from google.api_core.client_options import ClientOptions
+from google.auth import exceptions as auth_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -35,15 +36,30 @@ _RETRYABLE_TYPES = (
     requests_exceptions.Timeout,
 )
 
+_ADDITIONAL_RETRYABLE_STATUS_CODES = (408,)
+
+
+def _should_retry(exc):
+    """Predicate for determining when to retry."""
+    if isinstance(exc, _RETRYABLE_TYPES):
+        return True
+    elif isinstance(exc, api_exceptions.GoogleAPICallError):
+        return exc.code in _ADDITIONAL_RETRYABLE_STATUS_CODES
+    elif isinstance(exc, auth_exceptions.TransportError):
+        return _should_retry(exc.args[0])
+    else:
+        return False
+
 
 class GCSHandler:
     _default_backoff_params = {
-        "kind": "on_exception",
+        "kind": "on_predicate",
         "wait_gen": expo,
-        "exception": _RETRYABLE_TYPES,
+        "predicate": _should_retry,
         "on_backoff": backoff_hdlr,
         "max_tries": 8,
         "jitter": full_jitter,
+        "max_time": 600,
     }
     _default_ratelimit_params = {"calls": 15, "period": 900}
 
@@ -71,7 +87,7 @@ class GCSHandler:
             )
             self._ratelimiter = RateLimiter(**self._ratelimit_params)
         self.client = storage.Client(
-            project=project, credentials=credentials, options=options
+            project=project, credentials=credentials, client_options=options
         )
         self.bucket = self.client.bucket(bucket_name)
 
