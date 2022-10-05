@@ -14,6 +14,7 @@ Features
 Examples 
 *********************
 * Usage examples can be found in `example.py <https://github.com/fsn-capital/pycommon/blob/main/bq/example.py>`_
+* Dependencies can be installed using `Poetry <https://python-poetry.org/docs/>`_ dependency manager.
 
 **************************
 Feature Requests & Issues
