@@ -20,3 +20,8 @@ Examples
 Feature Requests & Issues
 **************************
 * Please feel free to open an issue in the repository and we will try to get back to you as soon as possible.
+
+*************************
+Releases
+*************************
+* Releases can be found `here <https://github.com/fsn-capital/pycommon/releases>`_.
