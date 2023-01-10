@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>pycommon.ratelimiter.ratelimiter API documentation</title>
+<title>avro API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,23 +19,23 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pycommon.ratelimiter.ratelimiter</code></h1>
+<h1 class="title">Package <code>avro</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from .ratelimit import RateLimiter
+<pre><code class="python">from .avro import AvroHandler
 
 __version__ = &#34;0.1.0&#34;
-__all__ = [&#34;RateLimiter&#34;]</code></pre>
+__all__ = [&#34;AvroHandler&#34;]</code></pre>
 </details>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt><code class="name"><a title="pycommon.ratelimiter.ratelimiter.ratelimit" href="ratelimit.html">pycommon.ratelimiter.ratelimiter.ratelimit</a></code></dt>
+<dt><code class="name"><a title="avro.avro" href="avro.html">avro.avro</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -48,9 +48,9 @@ __all__ = [&#34;RateLimiter&#34;]</code></pre>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="pycommon.ratelimiter.ratelimiter.RateLimiter"><code class="flex name class">
-<span>class <span class="ident">RateLimiter</span></span>
-<span>(</span><span>calls: int, period: Union[int, float])</span>
+<dt id="avro.AvroHandler"><code class="flex name class">
+<span>class <span class="ident">AvroHandler</span></span>
+<span>(</span><span>path: Optional[str] = None, pattern: str = '*.avsc')</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -58,63 +58,69 @@ __all__ = [&#34;RateLimiter&#34;]</code></pre>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class RateLimiter:
-    def __init__(self, calls: int, period: Union[int, float]):
-        self._max_calls = max(1, min(sys.maxsize, floor(calls)))
-        self._period = period
-        self._num_calls = 0
-        self._lock = RLock()
-        self._ticker = Event()
-        self._resetter = Thread(target=self._reset)
-        self._resetter.start()
-        self._cv = Condition(lock=self._lock)
+<pre><code class="python">class AvroHandler:
+    def __init__(self, path: Optional[str] = None, pattern: str = &#34;*.avsc&#34;):
+        self._schemas: MutableMapping = {}
+        if path:
+            self.discover_schema(cast(str, path), pattern)
 
-    def finalize(self):
-        self._ticker.set()
-        self._resetter.join()
+    def discover_schema(self, path: str, pattern: str = &#34;*.avsc&#34;):
+        for p in glob(os.path.join(path, pattern)):
+            with open(p, &#34;r&#34;) as f:
+                s = json.load(f)
+            # schemas are indexed by lowercase basename
+            self._schemas[
+                os.path.splitext(os.path.basename(p))[0].lower()
+            ] = fastavro.parse_schema(s)
 
-    def __enter__(self) -&gt; RateLimiter:
-        return self
+    @staticmethod
+    def _reader(file_like: Union[io.BytesIO, io.BufferedReader]) -&gt; Iterable[Mapping]:
+        return fastavro.reader(file_like)
 
-    def __exit__(
-        self,
-        type: Optional[Type[BaseException]],
-        value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -&gt; bool:
-        logger.debug(&#34;finalizing ratelimiter&#34;)
-        self.finalize()
-        if not type and not value and not traceback:
-            return True
-        print_exception(type, value, traceback)
-        return False
+    @staticmethod
+    def _writer(
+        file_like: Union[io.BytesIO, io.BufferedWriter],
+        schema: Mapping,
+        records: Iterable[Mapping],
+        codec: str = &#34;null&#34;,
+    ):
+        return fastavro.writer(file_like, schema=schema, records=records, codec=codec)
 
-    def _reset(self):
-        def do_reset():
-            logger.debug(&#34;resetting number of calls&#34;)
-            with self._lock:
-                self._num_calls = 0
+    @property
+    def schemas(self) -&gt; Mapping:
+        return self._schemas
 
-        while not self._ticker.wait(self._period):
-            do_reset()
-            logger.debug(&#34;notify waiting threads&#34;)
-            with self._cv:
-                # n = max calls avoids thundering herd problem
-                self._cv.notify(n=self._max_calls)
+    @staticmethod
+    def avro_stream_to_native(content: io.BytesIO) -&gt; Iterable[Mapping]:
+        return AvroHandler._reader(content)
 
-    def limit(self):
-        if self._num_calls == self._max_calls:
-            with self._cv:
-                self._cv.wait()
-        with self._lock:
-            logger.debug(&#34;increase call counter&#34;)
-            self._num_calls += 1
-            logger.debug(f&#34;num calls: {self._num_calls} max calls: {self._max_calls}&#34;)</code></pre>
+    @staticmethod
+    def native_to_avro_stream(
+        schema: Mapping, records: Iterable[Mapping]
+    ) -&gt; io.BytesIO:
+        byte_stream = io.BytesIO()
+        AvroHandler._writer(
+            byte_stream,
+            schema=schema,
+            records=records,
+        )
+        return byte_stream
+
+    @staticmethod
+    def write_to_disk(dest: str, schema: Mapping, records: Iterable[Mapping]):
+        with open(dest, &#34;wb&#34;) as f:
+            AvroHandler._writer(f, schema=schema, records=records)
+
+    @staticmethod
+    def read_from_disk(path: str) -&gt; Iterable[Mapping]:
+        with open(path, &#34;rb&#34;) as f:
+            records = AvroHandler._reader(f)
+        return records</code></pre>
 </details>
-<h3>Methods</h3>
+<h3>Static methods</h3>
 <dl>
-<dt id="pycommon.ratelimiter.ratelimiter.RateLimiter.finalize"><code class="name flex">
-<span>def <span class="ident">finalize</span></span>(<span>self)</span>
+<dt id="avro.AvroHandler.avro_stream_to_native"><code class="name flex">
+<span>def <span class="ident">avro_stream_to_native</span></span>(<span>content: io.BytesIO) ‑> Iterable[Mapping]</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -122,13 +128,13 @@ __all__ = [&#34;RateLimiter&#34;]</code></pre>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def finalize(self):
-    self._ticker.set()
-    self._resetter.join()</code></pre>
+<pre><code class="python">@staticmethod
+def avro_stream_to_native(content: io.BytesIO) -&gt; Iterable[Mapping]:
+    return AvroHandler._reader(content)</code></pre>
 </details>
 </dd>
-<dt id="pycommon.ratelimiter.ratelimiter.RateLimiter.limit"><code class="name flex">
-<span>def <span class="ident">limit</span></span>(<span>self)</span>
+<dt id="avro.AvroHandler.native_to_avro_stream"><code class="name flex">
+<span>def <span class="ident">native_to_avro_stream</span></span>(<span>schema: Mapping, records: Iterable[Mapping]) ‑> _io.BytesIO</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -136,14 +142,85 @@ __all__ = [&#34;RateLimiter&#34;]</code></pre>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def limit(self):
-    if self._num_calls == self._max_calls:
-        with self._cv:
-            self._cv.wait()
-    with self._lock:
-        logger.debug(&#34;increase call counter&#34;)
-        self._num_calls += 1
-        logger.debug(f&#34;num calls: {self._num_calls} max calls: {self._max_calls}&#34;)</code></pre>
+<pre><code class="python">@staticmethod
+def native_to_avro_stream(
+    schema: Mapping, records: Iterable[Mapping]
+) -&gt; io.BytesIO:
+    byte_stream = io.BytesIO()
+    AvroHandler._writer(
+        byte_stream,
+        schema=schema,
+        records=records,
+    )
+    return byte_stream</code></pre>
+</details>
+</dd>
+<dt id="avro.AvroHandler.read_from_disk"><code class="name flex">
+<span>def <span class="ident">read_from_disk</span></span>(<span>path: str) ‑> Iterable[Mapping]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def read_from_disk(path: str) -&gt; Iterable[Mapping]:
+    with open(path, &#34;rb&#34;) as f:
+        records = AvroHandler._reader(f)
+    return records</code></pre>
+</details>
+</dd>
+<dt id="avro.AvroHandler.write_to_disk"><code class="name flex">
+<span>def <span class="ident">write_to_disk</span></span>(<span>dest: str, schema: Mapping, records: Iterable[Mapping])</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def write_to_disk(dest: str, schema: Mapping, records: Iterable[Mapping]):
+    with open(dest, &#34;wb&#34;) as f:
+        AvroHandler._writer(f, schema=schema, records=records)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="avro.AvroHandler.schemas"><code class="name">var <span class="ident">schemas</span> : Mapping</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def schemas(self) -&gt; Mapping:
+    return self._schemas</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="avro.AvroHandler.discover_schema"><code class="name flex">
+<span>def <span class="ident">discover_schema</span></span>(<span>self, path: str, pattern: str = '*.avsc')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def discover_schema(self, path: str, pattern: str = &#34;*.avsc&#34;):
+    for p in glob(os.path.join(path, pattern)):
+        with open(p, &#34;r&#34;) as f:
+            s = json.load(f)
+        # schemas are indexed by lowercase basename
+        self._schemas[
+            os.path.splitext(os.path.basename(p))[0].lower()
+        ] = fastavro.parse_schema(s)</code></pre>
 </details>
 </dd>
 </dl>
@@ -157,23 +234,22 @@ __all__ = [&#34;RateLimiter&#34;]</code></pre>
 <ul></ul>
 </div>
 <ul id="index">
-<li><h3>Super-module</h3>
-<ul>
-<li><code><a title="pycommon.ratelimiter" href="../index.html">pycommon.ratelimiter</a></code></li>
-</ul>
-</li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="pycommon.ratelimiter.ratelimiter.ratelimit" href="ratelimit.html">pycommon.ratelimiter.ratelimiter.ratelimit</a></code></li>
+<li><code><a title="avro.avro" href="avro.html">avro.avro</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="pycommon.ratelimiter.ratelimiter.RateLimiter" href="#pycommon.ratelimiter.ratelimiter.RateLimiter">RateLimiter</a></code></h4>
+<h4><code><a title="avro.AvroHandler" href="#avro.AvroHandler">AvroHandler</a></code></h4>
 <ul class="">
-<li><code><a title="pycommon.ratelimiter.ratelimiter.RateLimiter.finalize" href="#pycommon.ratelimiter.ratelimiter.RateLimiter.finalize">finalize</a></code></li>
-<li><code><a title="pycommon.ratelimiter.ratelimiter.RateLimiter.limit" href="#pycommon.ratelimiter.ratelimiter.RateLimiter.limit">limit</a></code></li>
+<li><code><a title="avro.AvroHandler.avro_stream_to_native" href="#avro.AvroHandler.avro_stream_to_native">avro_stream_to_native</a></code></li>
+<li><code><a title="avro.AvroHandler.discover_schema" href="#avro.AvroHandler.discover_schema">discover_schema</a></code></li>
+<li><code><a title="avro.AvroHandler.native_to_avro_stream" href="#avro.AvroHandler.native_to_avro_stream">native_to_avro_stream</a></code></li>
+<li><code><a title="avro.AvroHandler.read_from_disk" href="#avro.AvroHandler.read_from_disk">read_from_disk</a></code></li>
+<li><code><a title="avro.AvroHandler.schemas" href="#avro.AvroHandler.schemas">schemas</a></code></li>
+<li><code><a title="avro.AvroHandler.write_to_disk" href="#avro.AvroHandler.write_to_disk">write_to_disk</a></code></li>
 </ul>
 </li>
 </ul>
