@@ -2,6 +2,7 @@ SHELL := /bin/bash
 POETRY_VERSION := 1.1.14
 MYPY_VERSION := 0.971
 PDOC_VERSION := 0.10.0
+RELEASE_TAG := v0.0.2-alpha
 
 .PHONY: all 
 all: deps build
@@ -39,3 +40,7 @@ docs: deps
 		fi; \
 		pushd $${dir} && poetry install && source $$(poetry env info --path)/bin/activate && pdoc . --html --output-dir docs --skip-errors --force && deactivate && popd || exit 1; \
 	done
+
+.PHONY: release
+release:
+	git tag ${RELEASE_TAG} && git push origin main --tags
