@@ -10,4 +10,4 @@
 
 ## Documentation
 
-Please refer to [docs](docs) folder for documentation.
+Please refer to the docs folder in the respective module for documentation.
