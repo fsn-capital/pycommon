@@ -226,3 +226,24 @@ class BQHandler:
             if self._backoff_params
             else None
         )
+
+    def list_tables(self, dataset_id: str) -> Iterable:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()  # type:ignore
+        return self._client.list_tables(
+            dataset_id,
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
+            if self._backoff_params
+            else None,
+        )
+
+    def delete_table(self, table_id: str, not_found_ok: bool = False):
+        if self._ratelimit_params:
+            self._ratelimiter.limit()  # type:ignore
+        self._client.delete_table(
+            table_id,
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
+            if self._backoff_params
+            else None,
+            not_found_ok=not_found_ok,
+        )
