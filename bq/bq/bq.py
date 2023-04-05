@@ -10,6 +10,7 @@ import logging
 from types import TracebackType
 from traceback import print_exception
 from google.api_core import exceptions
+import re
 
 
 _RETRYABLE_REASONS = frozenset(
@@ -225,4 +226,31 @@ class BQHandler:
             retry=SimpleRetrier(**self._backoff_params)  # type: ignore
             if self._backoff_params
             else None
+        )
+
+    def list_tables(self, dataset_id: str) -> Iterable:
+        if self._ratelimit_params:
+            self._ratelimiter.limit()  # type:ignore
+        return self._client.list_tables(
+            dataset_id,
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
+            if self._backoff_params
+            else None,
+        )
+
+    def delete_table(self, table_id: str, not_found_ok: bool = False):
+        if self._ratelimit_params:
+            self._ratelimiter.limit()  # type:ignore
+        self._client.delete_table(
+            table_id,
+            retry=SimpleRetrier(**self._backoff_params)  # type: ignore
+            if self._backoff_params
+            else None,
+            not_found_ok=not_found_ok,
+        )
+
+    def list_tables_matching_regex(self, dataset_id: str, pattern: str) -> Iterable:
+        return filter(
+            lambda table: re.match(pattern, table.table_id) is not None,
+            self.list_tables(dataset_id),
         )
