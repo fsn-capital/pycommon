@@ -251,5 +251,6 @@ class BQHandler:
 
     def list_tables_matching_regex(self, dataset_id: str, pattern: str) -> Iterable:
         return filter(
-            lambda x: re.match(pattern, x) is not None, self.list_tables(dataset_id)
+            lambda table: re.match(pattern, table.table_id) is not None,
+            self.list_tables(dataset_id),
         )

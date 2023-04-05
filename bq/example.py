@@ -77,3 +77,23 @@ def private_service_connect():
     with BQHandler(PROJECT_ID, api_endpoint=api_endpoint) as bq:
         for dataset in bq.list_datasets():
             print(dataset.dataset_id)
+
+
+def list_table():
+    with BQHandler(PROJECT_ID) as bq:
+        for table in bq.list_tables("PLACEHOLDER"):
+            print(table.table_id)
+
+
+def list_table_matching_regex():
+    with BQHandler(PROJECT_ID) as bq:
+        for table in bq.list_tables_matching_regex("PLACEHOLDER", "PLACEHOLDER"):
+            print(table.table_id)
+
+
+def remove_table():
+    with BQHandler(PROJECT_ID) as bq:
+        bq.delete_table(
+            bq.generate_table_id(PROJECT_ID, "PLACEHOLDER", "PLACEHOLDER"),
+            not_found_ok=False,
+        )
