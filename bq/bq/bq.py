@@ -10,6 +10,7 @@ import logging
 from types import TracebackType
 from traceback import print_exception
 from google.api_core import exceptions
+import re
 
 
 _RETRYABLE_REASONS = frozenset(
@@ -246,4 +247,9 @@ class BQHandler:
             if self._backoff_params
             else None,
             not_found_ok=not_found_ok,
+        )
+
+    def list_tables_matching_regex(self, dataset_id: str, pattern: str) -> Iterable:
+        return filter(
+            lambda x: re.match(pattern, x) is not None, self.list_tables(dataset_id)
         )
